@@ -121,7 +121,6 @@ Also, you could set the executor per file extension:
 ```
 
 **Note:** All of `code-runner.executorMapByFileExtension`, `code-runner.executorMapByGlob`, and `code-runner.executorMap` merge the default setting with what you set. If you want to remove one of the defaults, you can switch your setting to use `code-runner.executorMapByFileExtensionOverride`, `code-runner.executorMapByGlobOverride`, and `code-runner.executorMapOverride` respectively.
-Also, setting an override to only `{ "": "" }` may not work as expected. Make sure the key is not blank.
 
 To set the custom command to run:
 ```json

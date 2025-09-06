@@ -220,18 +220,15 @@ export class CodeManager implements vscode.Disposable {
 
     private createRandomFile(content: string, folder: string, fileExtension: string) {
         let fileType = "";
-        let languageIdToFileExtensionMap = this._config.get<any>("languageIdToFileExtensionMapOverride");
-        if (!languageIdToFileExtensionMap || Object.keys(languageIdToFileExtensionMap).length === 0) {
-            languageIdToFileExtensionMap = this._config.get<any>("languageIdToFileExtensionMap");
-        }
-        if (this._languageId && languageIdToFileExtensionMap[this._languageId]) {
-            fileType = languageIdToFileExtensionMap[this._languageId];
-        } else {
-            if (fileExtension) {
-                fileType = fileExtension;
-            } else {
-                fileType = "." + this._languageId;
+        if (this._languageId && this._languageId !== "") {
+            let languageIdToFileExtensionMap = this._config.get<any>("languageIdToFileExtensionMapOverride", {});
+            if (Object.keys(languageIdToFileExtensionMap).length === 0) {
+                languageIdToFileExtensionMap = this._config.get<any>("languageIdToFileExtensionMap", {});
             }
+
+            fileType = languageIdToFileExtensionMap[this._languageId] ?? fileExtension ?? ("." + this._languageId);
+        } else {
+            fileType = fileExtension ?? ("." + (this._languageId || ""));
         }
         const temporaryFileName = this._config.get<string>("temporaryFileName");
         const tmpFileNameWithoutExt = temporaryFileName ? temporaryFileName : "temp" + this.rndName();
@@ -255,17 +252,16 @@ export class CodeManager implements vscode.Disposable {
 
         if (executor == null) {
             let executorMapByGlob = this._config.get<any>("executorMapByGlobOverride", {});
-            if (!executorMapByGlob || Object.keys(executorMapByGlob).length === 0) {
-                executorMapByGlob = this._config.get<any>("executorMapByGlob");
+            if (Object.keys(executorMapByGlob).length === 0) {
+                executorMapByGlob = this._config.get<any>("executorMapByGlob", {});
             }
 
-            if (executorMapByGlob) {
-                const fileBasename = basename(this._document.fileName);
-                for (const glob of Object.keys(executorMapByGlob)) {
-                    if (micromatch.isMatch(fileBasename, glob)) {
-                        executor = executorMapByGlob[glob];
-                        break;
-                    }
+            executorMapByGlob = Object.fromEntries(Object.entries(executorMapByGlob).filter(([key]) => key !== ""))
+            const fileBasename = basename(this._document.fileName);
+            for (const glob of Object.keys(executorMapByGlob)) {
+                if (micromatch.isMatch(fileBasename, glob)) {
+                    executor = executorMapByGlob[glob];
+                    break;
                 }
             }
         }
@@ -277,10 +273,10 @@ export class CodeManager implements vscode.Disposable {
         }
 
         // executor is undefined or null
-        if (executor == null && fileExtension) {
+        if (executor == null && fileExtension && fileExtension !== "") {
             let executorMapByFileExtension = this._config.get<any>("executorMapByFileExtensionOverride", {});
-            if (!executorMapByFileExtension || Object.keys(executorMapByFileExtension).length === 0) {
-                executorMapByFileExtension = this._config.get<any>("executorMapByFileExtension");
+            if (Object.keys(executorMapByFileExtension).length === 0) {
+                executorMapByFileExtension = this._config.get<any>("executorMapByFileExtension", {});
             }
             executor = executorMapByFileExtension[fileExtension];
             if (executor != null) {
@@ -296,11 +292,11 @@ export class CodeManager implements vscode.Disposable {
     }
 
     private getExecutorMap(config: vscode.WorkspaceConfiguration): any {
-        const executorMapOverride = config.get<any>("executorMapOverride", {});
-        if (!executorMapOverride || Object.keys(executorMapOverride).length === 0) {
-            return config.get<any>("executorMap");
+        let executorMap = config.get<any>("executorMapOverride", {});
+        if (Object.keys(executorMap).length === 0) {
+            executorMap = config.get<any>("executorMap", {});
         }
-        return executorMapOverride;
+        return Object.fromEntries(Object.entries(executorMap).filter(([key]) => key !== ""));
     }
 
     private executeCommand(executor: string, appendFile: boolean = true) {
