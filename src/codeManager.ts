@@ -95,7 +95,7 @@ export class CodeManager implements vscode.Disposable {
     public runByLanguage(): void {
         this._appInsightsClient.sendEvent("runByLanguage");
         const config = this.getConfiguration("code-runner");
-        const executorMap = config.get<any>("executorMap");
+        const executorMap = this.getExecutorMap(config);
         vscode.window.showQuickPick(Object.keys(executorMap), { placeHolder: "Type or select language to run" }).then((languageId) => {
             if (languageId !== undefined) {
                 this.run(languageId);
@@ -220,7 +220,10 @@ export class CodeManager implements vscode.Disposable {
 
     private createRandomFile(content: string, folder: string, fileExtension: string) {
         let fileType = "";
-        const languageIdToFileExtensionMap = this._config.get<any>("languageIdToFileExtensionMap");
+        let languageIdToFileExtensionMap = this._config.get<any>("languageIdToFileExtensionMapOverride");
+        if (!languageIdToFileExtensionMap || Object.keys(languageIdToFileExtensionMap).length === 0) {
+            languageIdToFileExtensionMap = this._config.get<any>("languageIdToFileExtensionMap");
+        }
         if (this._languageId && languageIdToFileExtensionMap[this._languageId]) {
             fileType = languageIdToFileExtensionMap[this._languageId];
         } else {
@@ -251,7 +254,11 @@ export class CodeManager implements vscode.Disposable {
         }
 
         if (executor == null) {
-            const executorMapByGlob = this._config.get<any>("executorMapByGlob");
+            let executorMapByGlob = this._config.get<any>("executorMapByGlobOverride", {});
+            if (!executorMapByGlob || Object.keys(executorMapByGlob).length === 0) {
+                executorMapByGlob = this._config.get<any>("executorMapByGlob");
+            }
+
             if (executorMapByGlob) {
                 const fileBasename = basename(this._document.fileName);
                 for (const glob of Object.keys(executorMapByGlob)) {
@@ -263,7 +270,7 @@ export class CodeManager implements vscode.Disposable {
             }
         }
 
-        const executorMap = this._config.get<any>("executorMap");
+        const executorMap = this.getExecutorMap(this._config);
 
         if (executor == null) {
             executor = executorMap[this._languageId];
@@ -271,7 +278,10 @@ export class CodeManager implements vscode.Disposable {
 
         // executor is undefined or null
         if (executor == null && fileExtension) {
-            const executorMapByFileExtension = this._config.get<any>("executorMapByFileExtension");
+            let executorMapByFileExtension = this._config.get<any>("executorMapByFileExtensionOverride", {});
+            if (!executorMapByFileExtension || Object.keys(executorMapByFileExtension).length === 0) {
+                executorMapByFileExtension = this._config.get<any>("executorMapByFileExtension");
+            }
             executor = executorMapByFileExtension[fileExtension];
             if (executor != null) {
                 this._languageId = fileExtension;
@@ -283,6 +293,14 @@ export class CodeManager implements vscode.Disposable {
         }
 
         return executor;
+    }
+
+    private getExecutorMap(config: vscode.WorkspaceConfiguration): any {
+        const executorMapOverride = config.get<any>("executorMapOverride", {});
+        if (!executorMapOverride || Object.keys(executorMapOverride).length === 0) {
+            return config.get<any>("executorMap");
+        }
+        return executorMapOverride;
     }
 
     private executeCommand(executor: string, appendFile: boolean = true) {
